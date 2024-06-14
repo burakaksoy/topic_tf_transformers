@@ -92,8 +92,9 @@ class WrenchTransformer():
             return True
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             # Put a warning which says that the transformation could not found
-            rospy.logwarn_once('wrench_transformer: Waiting to find the transformation from %s to %s' 
-                            % (self.tf_a_frame_name, self.tf_b_frame_name)) 
+            msg = '[wrench_transformer] Waiting to find the transformation from %s to %s' \
+                    % (self.tf_a_frame_name, self.tf_b_frame_name)
+            rospy.logwarn_throttle(2.0, msg + ' (throttled 2.0s)') 
             return False
 
     def transform_and_publish_wrench(self):
