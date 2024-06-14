@@ -78,7 +78,8 @@ class WrenchTransformer():
 
         if not self.is_ok_tf:
             # Do not publish wrench since the transformation could not found
-            self.publish_wrench([0.,0.,0.],[0.,0.,0.])
+            # self.publish_wrench([0.,0.,0.],[0.,0.,0.])
+            self.publish_wrench_stamped([0.,0.,0.],[0.,0.,0.])
         else:
             # Publish the command to move the end effector to the body joint
             self.transform_and_publish_wrench()
