@@ -14,7 +14,7 @@ Subscribes to:
     - tf2
     - geometry_msgs::WrenchStamped
 Publishes to:
-    - geometry_msgs::Wrench (My use case needed a non-stamped wrench msg, hence did not make it stamped)
+    - geometry_msgs::Wrench or geometry_msgs::WrenchStamped 
 
 Broadcasts to:
     - NONE
@@ -45,7 +45,7 @@ class WrenchTransformer():
         self.tf_b_frame_name = rospy.get_param("~tf_b_frame_name", "tf_b_link")
 
         # Publisher
-        self.pub_wrench = rospy.Publisher(self.wrench_topic_name_out, geometry_msgs.msg.Wrench, queue_size=1)
+        self.pub_wrench = rospy.Publisher(self.wrench_topic_name_out, geometry_msgs.msg.WrenchStamped, queue_size=1)
 
         # Subscriber
         rospy.Subscriber(self.wrench_topic_name_in, geometry_msgs.msg.WrenchStamped, self.wrench_callback , queue_size=1)
@@ -115,7 +115,8 @@ class WrenchTransformer():
         f_b = np.dot(R_b2a,f_a)
         t_b = np.dot(R_b2a,t_a) - np.dot(R_b2a, np.cross(P_a2b_in_a,f_a))
 
-        self.publish_wrench(f_b,t_b)
+        # self.publish_wrench(f_b,t_b)
+        self.publish_wrench_stamped(f_b,t_b)
 
     def publish_wrench(self, f,t):
         if not ((rospy.Time.now().to_sec() - self.last_msg_time) > self.wait_timeout):
@@ -136,24 +137,37 @@ class WrenchTransformer():
             wrench_msg.torque.y = 0.0
             wrench_msg.torque.z = 0.0
             self.pub_wrench.publish(wrench_msg)
-
-    """
-    def publishWrenchStamped(self, header, wrench):
-        wrench_stamped_msg = geometry_msgs.msg.WrenchStamped()
-        wrench_stamped_msg.header = header
-
-        # now = rospy.Time.now()
-        # rospy.loginfo("WRENCH: Added time delay %i secs %i nsecs", (now.secs - header.stamp.secs), (now.nsecs -header.stamp.nsecs))
+            
+    def publish_wrench_stamped(self, f,t):
+        if not ((rospy.Time.now().to_sec() - self.last_msg_time) > self.wait_timeout):
+            wrench_msg = geometry_msgs.msg.WrenchStamped()
+            
+            wrench_msg.header.stamp = rospy.Time.now()
+            wrench_msg.header.frame_id = self.tf_b_frame_name
+            
+            wrench_msg.wrench.force.x = f[0]
+            wrench_msg.wrench.force.y = f[1]
+            wrench_msg.wrench.force.z = f[2]
+            wrench_msg.wrench.torque.x = t[0]
+            wrench_msg.wrench.torque.y = t[1]
+            wrench_msg.wrench.torque.z = t[2]
+            
+            self.pub_wrench.publish(wrench_msg)
         
-        wrench_stamped_msg.wrench.force.x = wrench[3]
-        wrench_stamped_msg.wrench.force.y = wrench[4]
-        wrench_stamped_msg.wrench.force.z = wrench[5]
-        wrench_stamped_msg.wrench.torque.x = wrench[0]
-        wrench_stamped_msg.wrench.torque.y = wrench[1]
-        wrench_stamped_msg.wrench.torque.z = wrench[2]
-
-        self.pub_wrench.publish(wrench_stamped_msg)
-    """
+        else:
+            wrench_msg = geometry_msgs.msg.WrenchStamped()
+            
+            wrench_msg.header.stamp = rospy.Time.now()
+            wrench_msg.header.frame_id = self.tf_b_frame_name
+            
+            wrench_msg.wrench.force.x = 0.0
+            wrench_msg.wrench.force.y = 0.0
+            wrench_msg.wrench.force.z = 0.0
+            wrench_msg.wrench.torque.x = 0.0
+            wrench_msg.wrench.torque.y = 0.0
+            wrench_msg.wrench.torque.z = 0.0
+            
+            self.pub_wrench.publish(wrench_msg)
 
     def wrench_callback(self, wrench_stamped_msg):
         F_lin_x = wrench_stamped_msg.wrench.force.x
