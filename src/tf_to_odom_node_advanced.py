@@ -30,6 +30,7 @@ import numpy as np
 import tf2_ros
 import tf2_geometry_msgs
 import geometry_msgs.msg 
+from geometry_msgs.msg import Twist
 import nav_msgs.msg
 
 # Because of transformations
@@ -68,6 +69,14 @@ class Tf2Odom():
             self.tf_b_to_c_pose["orientation"]["z"],
             self.tf_b_to_c_pose["orientation"]["w"]
         ]
+        
+        # Subscribers
+        self.twist = Twist()  # Set it to an empty twist message
+        self.last_twist_time = rospy.Time.now()  # For timestamping of the last twist msg
+        self.twist_wait_timeout = rospy.Duration(1.0)  # Timeout duration to wait twist msg before zeroing in seconds
+        self.twist_topic_name_in = rospy.get_param("~twist_topic_name_in", "/cmd_vel")
+
+        self.sub_twist = rospy.Subscriber(self.twist_topic_name_in, Twist, self.twist_callback, queue_size=1)
 
         # Publisher
         self.pub_odom = rospy.Publisher(self.odom_topic_name_out, nav_msgs.msg.Odometry, queue_size=1)
@@ -87,9 +96,27 @@ class Tf2Odom():
 
         # Start control
         rospy.Timer(rospy.Duration(self.expected_duration), self.transformer)
-
+        
+    def twist_callback(self, twist):
+        # self.twist.linear.x = twist.linear.x 
+        # self.twist.linear.y = twist.linear.y
+        # self.twist.linear.z = twist.linear.z
+        # self.twist.angular.x = twist.angular.x
+        # self.twist.angular.y = twist.angular.y  
+        # self.twist.angular.z = twist.angular.z  
+        self.twist = twist
+        self.last_twist_time = rospy.Time.now()
+        
+    def check_twist_wait_timeout(self):
+        if (rospy.Time.now() - self.last_twist_time) > self.twist_wait_timeout:
+            # Reset twist to zero after timeout
+            self.twist = Twist()
+            # rospy.loginfo_throttle(2.0,"twist is zeroed because it's been long time since the last msg arrived..")
 
     def transformer(self, event=None):
+        # Reset spacenav_twist to zero if it's been long time since the last arrived
+        self.check_twist_wait_timeout()
+        
         # Find the transform between the specified frames A and B
         self.is_ok_tf = self.look_tfs()
 
@@ -176,12 +203,7 @@ class Tf2Odom():
         msg.pose.pose.orientation.w = q_b[3]
 
         # velocities 0 for example
-        msg.twist.twist.linear.x = 0.0
-        msg.twist.twist.linear.y = 0.0
-        msg.twist.twist.linear.z = 0.0
-        msg.twist.twist.angular.x = 0.0
-        msg.twist.twist.angular.y = 0.0
-        msg.twist.twist.angular.z = 0.0
+        msg.twist.twist = self.twist
 
         self.pub_odom.publish(msg)
 
