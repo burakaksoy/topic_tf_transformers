@@ -48,6 +48,8 @@ class Tf2Odom():
         # Specified tf frame names
         self.tf_a_frame_name = rospy.get_param("~tf_a_frame_name", "tf_a_link")
         self.tf_b_frame_name = rospy.get_param("~tf_b_frame_name", "tf_b_link")
+        
+        self.is_same_ori_a_to_b = rospy.get_param("~is_same_ori_a_to_b", False)
 
         # Additional offset from frame B to frame C (transform B->C)
         # If not provided, it defaults to identity transform.
@@ -154,11 +156,15 @@ class Tf2Odom():
         P_a2b_in_a = np.array([P_a2b_in_a_x, P_a2b_in_a_y, P_a2b_in_a_z])
 
         # Extract the quaternion from A->B
-        qw_cur = self.T_a2b.transform.rotation.w
-        qx_cur = self.T_a2b.transform.rotation.x
-        qy_cur = self.T_a2b.transform.rotation.y
-        qz_cur = self.T_a2b.transform.rotation.z
-        q_a2b = [qx_cur, qy_cur, qz_cur, qw_cur]
+        if self.is_same_ori_a_to_b:
+            # If the orientation is the same, we can use the identity quaternion
+            q_a2b = [0.0, 0.0, 0.0, 1.0]
+        else:
+            qw_cur = self.T_a2b.transform.rotation.w
+            qx_cur = self.T_a2b.transform.rotation.x
+            qy_cur = self.T_a2b.transform.rotation.y
+            qz_cur = self.T_a2b.transform.rotation.z
+            q_a2b = [qx_cur, qy_cur, qz_cur, qw_cur]
 
         # Build the 4x4 homogeneous transform for A->B
         T_a2b_mat = tf.transformations.quaternion_matrix(q_a2b)
